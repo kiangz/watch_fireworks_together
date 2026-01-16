@@ -1,0 +1,7 @@
+# python项目的gitignore文件
+
+# 忽略python缓存文件
+__pycache__/
+.vscode/
+.venv/
+.env

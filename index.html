@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>邀你看烟花</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            display: none;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #222;
+            color: white;
+        }
+
+        button {
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .mobile-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            color: white;
+        }
+
+        .mobile-title {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mobile-subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+
+        .mobile-input {
+            width: 80%;
+            max-width: 300px;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 50px;
+            border: 2px solid #ff7e5f;
+            background: #222;
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .start-btn {
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(254, 180, 123, 0.6);
+        }
+
+        .danmaku-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            overflow: hidden;
+        }
+
+        .danmaku {
+            position: absolute;
+            white-space: nowrap;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            animation: danmaku-move linear forwards;
+        }
+
+        @keyframes danmaku-move {
+            from {
+                transform: translateX(100vw);
+            }
+            to {
+                transform: translateX(-100%);
+            }
+        }
+
+        .danmaku-input {
+            position: absolute;
+            bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 2px solid #ff7e5f;
+        }
+
+        .danmaku-input input {
+            width: 300px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .danmaku-input input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .danmaku-input button {
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .danmaku-input button:hover { transform: scale(1.05); } @media (max-width: 767px) { .danmaku-input { width: 90%; left: 50%; transform: translateX(-50%); padding: 8px 15px; } .danmaku-input input { width: 100%; font-size: 14px; } .danmaku-input button { padding: 8px 15px; font-size: 14px; } } @media (min-width: 768px) {
+            .mobile-overlay {
+                display: none;
+            }
+            
+            .controls {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 控制面板 (桌面端) -->
+    <div class="controls">
+        <div class="input-group">
+            <label for="color-picker">烟花颜色:</label>
+            <select id="color-picker">
+                <option value="random">随机颜色</option>
+                <option value="#ffffff">白色为主</option>
+                <option value="#ff0000">红色</option>
+                <option value="#00ff00">绿色</option>
+                <option value="#0000ff">蓝色</option>
+                <option value="#ffff00">黄色</option>
+                <option value="#ff00ff">品红</option>
+                <option value="#00ffff">青色</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <button id="launch-btn">发射烟花</button>
+        </div>
+    </div>
+
+    <!-- 手机端覆盖层 -->
+    <div class="mobile-overlay" id="mobile-overlay">
+        <h1 class="mobile-title">炫酷烟花秀</h1>
+        <p class="mobile-subtitle">点击下方按钮开始欣赏美丽的烟花</p>
+        <button class="start-btn" id="mobile-start-btn">开始烟花秀</button>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <!-- 弹幕容器 -->
+    <div class="danmaku-container" id="danmaku-container"></div>
+
+    <!-- 弹幕输入框 -->
+    <div class="danmaku-input">
+        <input type="text" id="danmaku-text" placeholder="发送弹幕..." maxlength="50">
+        <button id="send-danmaku-btn">发送</button>
+    </div>
+
+    <script>
+        // 获取canvas元素和上下文
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 设置画布大小为窗口大小
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        // 初始化画布大小
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // 烟花粒子类
+        class Particle {
+            constructor(x, y, color, size = null, type = 'normal') {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = size !== null ? size : (Math.random() * 2 + 1);
+                this.type = type; // 'normal', 'sparkle', 'trail'
+                
+                // 根据类型设置不同的物理属性
+                if (type === 'sparkle') {
+                    this.velocity = {
+                        x: (Math.random() - 0.5) * 8,
+                        y: (Math.random() - 0.5) * 8
+                    };
+                    this.gravity = 0.01;
+                    this.decay = 0.015;
+                } else if (type === 'trail') {
+                    this.velocity = {
+                        x: (Math.random() - 0.5) * 3,
+                        y: (Math.random() - 0.5) * 3
+                    };
+                    this.gravity = 0.02;
+                    this.decay = 0.005;
+                } else {
+                    this.velocity = {
+                        x: (Math.random() - 0.5) * 10,
+                        y: (Math.random() - 0.5) * 10
+                    };
+                    this.gravity = 0.02;
+                    this.decay = 0.005;
+                }
+                
+                this.alpha = 1;
+                this.resistance = 0.92;
+                this.sparkleFreq = Math.random() * 0.2 + 0.05; // 闪烁频率
+                this.sparkleTimer = 0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                
+                if (this.type === 'sparkle') {
+                    // 闪闪发光的效果
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                    
+                    // 添加光晕效果
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 15;
+                    ctx.fill();
+                    
+                    // 随机闪烁效果
+                    this.sparkleTimer += 0.1;
+                    if (Math.sin(this.sparkleTimer * this.sparkleFreq * 10) > 0.5) {
+                        ctx.shadowBlur = 30;
+                        ctx.fill();
+                    }
+                } else if (this.type === 'trail') {
+                    // 轨迹效果
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                    
+                    // 拖尾效果
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                } else {
+                    // 普通粒子
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                    
+                    // 增加光晕效果
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 15;
+                    ctx.fill();
+                }
+                
+                ctx.closePath();
+                ctx.restore();
+            }
+
+            update() {
+                this.velocity.x *= this.resistance;
+                this.velocity.y *= this.resistance;
+                this.y += this.velocity.y;
+                this.x += this.velocity.x;
+                this.velocity.y += this.gravity;
+                
+                this.alpha -= this.decay;
+                this.draw();
+                return this.alpha > 0;
+            }
+        }
+
+        // 烟花类
+        class Firework {
+            constructor(startX, startY, endX, endY, color) {
+                this.start = { x: startX, y: startY };
+                this.current = { x: startX, y: startY };
+                this.end = { x: endX, y: endY };
+                this.color = color;
+                this.velocity = {
+                    x: (this.end.x - this.start.x) / 20,
+                    y: (this.end.y - this.start.y) / 20
+                };
+                this.distance = Math.sqrt(
+                    Math.pow(this.end.x - this.start.x, 2) +
+                    Math.pow(this.end.y - this.start.y, 2)
+                );
+                this.traveled = 0;
+                this.brightness = Math.random() * 50 + 50;
+                this.hue = color ? parseInt(color.replace('#', ''), 16) : Math.random() * 360;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.current.x, this.current.y);
+                ctx.lineTo(
+                    this.current.x + this.velocity.x,
+                    this.current.y + this.velocity.y
+                );
+                ctx.strokeStyle = this.color || `hsl(${this.hue}, 100%, ${this.brightness}%)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            update() {
+                this.traveled += Math.sqrt(
+                    Math.pow(this.velocity.x, 2) + Math.pow(this.velocity.y, 2)
+                );
+
+                this.current.x += this.velocity.x;
+                this.current.y += this.velocity.y;
+
+                this.draw();
+
+                // 如果烟花到达目标位置，爆炸
+                return this.traveled < this.distance;
+            }
+        }
+
+        // 全局变量
+        let particles = [];
+        let fireworks = [];
+        let lastTime = 0;
+        // 增加白色烟花的比例
+        const colors = [
+            '#ffffff', '#ffffff', '#ffffff', // 白色占多数
+            '#ff0000', '#00ff00', '#0000ff', 
+            '#ffff00', '#ff00ff', '#00ffff', 
+            '#ff7e5f', '#feb47b', 
+            '#ff9a00', '#7bff00',
+            '#ffffff', '#ffffff' // 再增加白色
+        ];
+        let selectedColorOption = "random"; // 默认随机颜色
+        let isMobileStarted = false;
+
+        // 创建烟花
+        function createFirework(x, y) {
+            const endX = x || Math.random() * canvas.width;
+            const endY = y || Math.random() * canvas.height / 2;
+            
+            // 根据选择确定颜色
+            let fireworkColor;
+            if (selectedColorOption === "random") {
+                fireworkColor = colors[Math.floor(Math.random() * colors.length)];
+            } else if (selectedColorOption === "#ffffff") {
+                // 白色为主，但偶尔有其他颜色
+                fireworkColor = Math.random() > 0.2 ? "#ffffff" : colors.filter(c => c !== "#ffffff")[Math.floor(Math.random() * colors.filter(c => c !== "#ffffff").length)];
+            } else {
+                fireworkColor = selectedColorOption;
+            }
+            
+            // 优化的烟花效果
+            createImprovedFirework(endX, endY, fireworkColor);
+            
+            // 创建上升烟花
+            const firework = new Firework(
+                canvas.width / 2 + (Math.random() - 0.5) * 100,
+                canvas.height,
+                endX,
+                endY,
+                fireworkColor
+            );
+            fireworks.push(firework);
+        }
+
+        // 创建优化的烟花效果
+        function createImprovedFirework(x, y, color) {
+            const particleCount = window.innerWidth < 768 ? 30 + Math.floor(Math.random() * 30) : 100 + Math.floor(Math.random() * 100); // 100-200个粒子
+            const baseColor = color || colors[Math.floor(Math.random() * colors.length)];
+            
+            // 主粒子
+            for (let i = 0; i < particleCount * 0.6; i++) {
+                const hueShift = Math.random() * 60 - 30; // 色调变化
+                const color = baseColor;
+                const particle = new Particle(x, y, color, Math.random() * 2 + 1);
+                // 设置随机方向的速度
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                particle.velocity = {
+                    x: Math.cos(angle) * speed,
+                    y: Math.sin(angle) * speed
+                };
+                particles.push(particle);
+            }
+            
+            // 闪烁粒子
+            for (let i = 0; i < particleCount * 0.3; i++) {
+                const particleColor = getParticleColor(baseColor, 30);
+                const particle = new Particle(x, y, particleColor, Math.random() * 1.5 + 0.5, 'sparkle');
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 1;
+                particle.velocity = {
+                    x: Math.cos(angle) * speed,
+                    y: Math.sin(angle) * speed
+                };
+                particles.push(particle);
+            }
+            
+            // 拖尾粒子
+            for (let i = 0; i < particleCount * 0.1; i++) {
+                const particleColor = getParticleColor(baseColor, -20);
+                const particle = new Particle(x, y, particleColor, Math.random() * 1 + 0.5, 'trail');
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3 + 0.5;
+                particle.velocity = {
+                    x: Math.cos(angle) * speed,
+                    y: Math.sin(angle) * speed
+                };
+                particles.push(particle);
+            }
+        }
+
+        // 获取粒子颜色（根据基础颜色生成相似色系）
+        function getParticleColor(baseColor, brightnessOffset = 0) {
+            // 如果基础颜色是白色，返回不同亮度的白色
+            if (baseColor.toLowerCase() === '#ffffff') {
+                const brightness = 220 + Math.floor(Math.random() * 35); // 220-255之间
+                return `rgb(${brightness}, ${brightness}, ${brightness})`;
+            }
+            
+            // 对于其他颜色，生成相似色调
+            const hex = baseColor.replace('#', '');
+            let r = parseInt(hex.substring(0, 2), 16);
+            let g = parseInt(hex.substring(2, 4), 16);
+            let b = parseInt(hex.substring(4, 6), 16);
+            
+            // 添加一些随机变化
+            r = Math.min(255, Math.max(0, r + (Math.random() * 40 - 20)));
+            g = Math.min(255, Math.max(0, g + (Math.random() * 40 - 20)));
+            b = Math.min(255, Math.max(0, b + (Math.random() * 40 - 20)));
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // 动画循环
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+            
+            // 计算时间差
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            
+            // 清空画布
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 更新并绘制烟花
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                if (!fireworks[i].update()) {
+                    // 烟花到达终点，爆炸
+                    fireworks.splice(i, 1);
+                }
+            }
+            
+            // 更新并绘制粒子
+            for (let i = particles.length - 1; i >= 0; i--) {
+                if (!particles[i].update()) {
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // 随机创建新的烟花（如果不是移动端或已经开始了）
+            if ((isMobileStarted || window.innerWidth >= 768) && Math.random() < 0.03 && fireworks.length < 5) {
+                createFirework();
+            }
+        }
+
+        // 启动动画
+        animate(0);
+
+        // 桌面端控制
+        document.getElementById('launch-btn').addEventListener('click', () => {
+            createFirework(
+                Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
+                Math.random() * canvas.height * 0.6 + canvas.height * 0.2
+            );
+        });
+
+        // 颜色选择器事件
+        document.getElementById('color-picker').addEventListener('change', (e) => {
+            selectedColorOption = e.target.value;
+        });
+
+        // 移动端控制
+        document.getElementById('mobile-start-btn').addEventListener('click', () => {
+            document.getElementById('mobile-overlay').style.display = 'none';
+            isMobileStarted = true;
+            
+            // 开始自动发射烟花
+            setInterval(() => {
+                if (Math.random() < 0.3) { // 移动端30%概率发射烟花，减少卡顿
+                    createFirework(
+                        Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
+                        Math.random() * canvas.height * 0.6 + canvas.height * 0.2
+                    );
+                }
+            }, 2000);
+        });
+
+        // 点击画布创建烟花
+        canvas.addEventListener('click', (e) => {
+            if (!isMobileStarted && window.innerWidth < 768) return; // 移动端未开始时不响应
+            createFirework(e.clientX, e.clientY);
+        });
+
+        // WebSocket 连接
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = new WebSocket(`${protocol}//${window.location.hostname}:8001/ws`);
+        const danmakuContainer = document.getElementById('danmaku-container');
+        const danmakuInput = document.getElementById('danmaku-text');
+        const sendDanmakuBtn = document.getElementById('send-danmaku-btn');
+        const danmakuColors = ['#ffffff', '#ff7e5f', '#feb47b', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+        
+        // 历史弹幕列表和循环播放相关
+        let danmakuHistory = [];
+        let loopInterval = null;
+        const LOOP_INTERVAL = 3000; // 循环播放间隔（毫秒）
+
+        // 连接成功
+        socket.addEventListener('open', () => {
+            console.log('WebSocket 连接成功');
+        });
+
+        // 接收消息
+        socket.addEventListener('message', (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'danmaku') {
+                    createDanmaku(data.text, data.color, data.size, data.speed);
+                    // 将新弹幕添加到历史列表
+                    danmakuHistory.push({
+                        text: data.text,
+                        color: data.color,
+                        size: data.size,
+                        speed: data.speed
+                    });
+                    // 确保循环播放持续运行
+                    ensureLoopRunning();
+                } else if (data.type === 'danmaku_history') {
+                    // 处理历史弹幕
+                    if (data.danmakus && data.danmakus.length > 0) {
+                        // 解析历史弹幕数据
+                        data.danmakus.forEach(danmakuStr => {
+                            try {
+                                const danmaku = JSON.parse(danmakuStr);
+                                danmakuHistory.push(danmaku);
+                            } catch (e) {
+                                console.error('解析历史弹幕失败:', e);
+                            }
+                        });
+                    }
+                    // 确保循环播放开始运行
+                    ensureLoopRunning();
+                }
+            } catch (e) {
+                console.error('解析消息失败:', e);
+            }
+        });
+        
+        // 开始循环播放弹幕
+        function startLoopPlay() {
+            // 清除之前的定时器
+            if (loopInterval) {
+                clearInterval(loopInterval);
+            }
+            
+            if (danmakuHistory.length === 0) {
+                return;
+            }
+            
+            let index = 0;
+            loopInterval = setInterval(() => {
+                const danmaku = danmakuHistory[index];
+                createDanmaku(danmaku.text, danmaku.color, danmaku.size, danmaku.speed);
+                
+                index++;
+                if (index >= danmakuHistory.length) {
+                    index = 0;
+                }
+            }, LOOP_INTERVAL);
+        }
+        
+        // 确保循环播放持续运行
+        function ensureLoopRunning() {
+            // 如果没有正在运行的循环，或者弹幕历史为空（但现在有内容了），则启动循环
+            if (!loopInterval || danmakuHistory.length > 0) {
+                startLoopPlay();
+            }
+        }
+
+        // 连接关闭
+        socket.addEventListener('close', () => {
+            console.log('WebSocket 连接关闭');
+            // 停止循环播放
+            if (loopInterval) {
+                clearInterval(loopInterval);
+                loopInterval = null;
+            }
+        });
+
+        // 连接错误
+        socket.addEventListener('error', (error) => {
+            console.error('WebSocket 错误:', error);
+            // 停止循环播放
+            if (loopInterval) {
+                clearInterval(loopInterval);
+                loopInterval = null;
+            }
+        });
+
+        // 创建弹幕元素
+        function createDanmaku(text, color, size, speed) {
+            const danmaku = document.createElement('div');
+            danmaku.className = 'danmaku';
+            danmaku.textContent = text;
+            danmaku.style.color = color || danmakuColors[Math.floor(Math.random() * danmakuColors.length)];
+            danmaku.style.fontSize = (size || 24) + 'px';
+            danmaku.style.top = Math.random() * (window.innerHeight - 100) + 'px';
+            danmaku.style.animationDuration = (15 - (speed || 5)) + 's';
+            
+            danmakuContainer.appendChild(danmaku);
+            
+            // 动画结束后移除元素
+            danmaku.addEventListener('animationend', () => {
+                danmaku.remove();
+            });
+        }
+
+        // 发送弹幕
+        function sendDanmaku() {
+            const text = danmakuInput.value.trim();
+            if (text && socket.readyState === WebSocket.OPEN) {
+                const color = danmakuColors[Math.floor(Math.random() * danmakuColors.length)];
+                const size = Math.floor(Math.random() * 10) + 20;
+                const speed = Math.floor(Math.random() * 5) + 3;
+                
+                const message = {
+                    type: 'danmaku',
+                    text: text,
+                    color: color,
+                    size: size,
+                    speed: speed
+                };
+                
+                socket.send(JSON.stringify(message));
+                danmakuInput.value = '';
+            }
+        }
+
+        // 点击发送按钮
+        sendDanmakuBtn.addEventListener('click', sendDanmaku);
+
+        // 回车发送
+        danmakuInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendDanmaku();
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
