@@ -12,11 +12,11 @@ active_connections: List[WebSocket] = []
 danmaku_history = []
 MAX_DANMAKU = 10
 
-@app.get("/")
+@app.get("/health")
 def read_root():
     return {"Hello": "World"}
 
-@app.get("/fireworks", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
 def fireworks():
     with open('index.html', 'r', encoding='utf-8') as f:
         content = f.read()
