@@ -8,7 +8,12 @@ version = "0.1.0"
 description = "一个实时烟花观看与弹幕交流的Web应用"
 authors = [{name = "qiangzwz", email = "123@example.com"}]
 license = {text = "MIT"}
-requires-python = ">=3.7"  # 锁定 3.7
+requires-python = ">=3.7"
 dependencies = [
     "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "websockets",
+    "pydantic",
+    "python-dotenv"
 ]
