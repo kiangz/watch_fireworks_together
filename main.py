@@ -1,9 +1,13 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from typing import List
 import json
 
 app = FastAPI()
+
+# 挂载静态文件目录
+app.mount("/audio", StaticFiles(directory="audio"), name="audio")
 
 # 全局连接列表
 active_connections: List[WebSocket] = []

@@ -247,6 +247,53 @@
         <button id="send-danmaku-btn">发送</button>
     </div>
 
+    <!-- 音频元素用于播放烟花声音 -->
+    <audio id="launch-sound" src="/audio/烟花发射声音.mp3" preload="auto"></audio>
+    <audio id="launch-sound2" src="/audio/烟花发射声音2.mp3" preload="auto"></audio>
+    <audio id="explosion-sound" src="/audio/烟花爆裂声1.mp3" preload="auto"></audio>
+    <audio id="explosion-sound2" src="/audio/烟花爆裂声3噼里啪啦.mp3" preload="auto"></audio>
+    <audio id="big-explosion-sound" src="/audio/大烟花爆裂声1.mp3" preload="auto"></audio>
+    <audio id="big-explosion-sound2" src="/audio/大烟花爆裂声2.mp3" preload="auto"></audio>
+    <audio id="continuous-explosion-sound" src="/audio/小烟花连续爆裂声.mp3" preload="auto"></audio>
+    
+    <script>
+        // 播放烟花发射的声音
+        function playLaunchSound() {
+            const sounds = [
+                document.getElementById('launch-sound'),
+                document.getElementById('launch-sound2')
+            ];
+            const sound = sounds[Math.floor(Math.random() * sounds.length)];
+            sound.currentTime = 0;
+            sound.volume = 0.5;
+            sound.play().catch(e => console.warn('播放发射声音失败:', e));
+        }
+
+        // 播放烟花爆炸的声音
+        function playExplosionSound() {
+            const sounds = [
+                document.getElementById('explosion-sound'),
+                document.getElementById('explosion-sound2'),
+                document.getElementById('continuous-explosion-sound')
+            ];
+            const sound = sounds[Math.floor(Math.random() * sounds.length)];
+            sound.currentTime = 0;
+            sound.volume = 0.7;
+            sound.play().catch(e => console.warn('播放爆炸声音失败:', e));
+        }
+
+        // 播放大烟花爆炸的声音
+        function playBigExplosionSound() {
+            const sounds = [
+                document.getElementById('big-explosion-sound'),
+                document.getElementById('big-explosion-sound2')
+            ];
+            const sound = sounds[Math.floor(Math.random() * sounds.length)];
+            sound.currentTime = 0;
+            sound.volume = 1.0;
+            sound.play().catch(e => console.warn('播放大爆炸声音失败:', e));
+        }
+    </script>
     <script>
         // 获取canvas元素和上下文
         const canvas = document.getElementById('canvas');
@@ -366,11 +413,12 @@
 
         // 烟花类
         class Firework {
-            constructor(startX, startY, endX, endY, color) {
+            constructor(startX, startY, endX, endY, color, type = 'normal') {
                 this.start = { x: startX, y: startY };
                 this.current = { x: startX, y: startY };
                 this.end = { x: endX, y: endY };
                 this.color = color;
+                this.type = type; // 'normal' 或 'big'
                 this.velocity = {
                     x: (this.end.x - this.start.x) / 20,
                     y: (this.end.y - this.start.y) / 20
@@ -392,8 +440,16 @@
                     this.current.y + this.velocity.y
                 );
                 ctx.strokeStyle = this.color || `hsl(${this.hue}, 100%, ${this.brightness}%)`;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = this.type === 'big' ? 4 : 2;
                 ctx.stroke();
+                
+                // 为大烟花添加额外的发光效果
+                if (this.type === 'big') {
+                    ctx.shadowColor = this.color || `hsl(${this.hue}, 100%, ${this.brightness}%)`;
+                    ctx.shadowBlur = 20;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
             }
 
             update() {
@@ -427,7 +483,7 @@
         let selectedColorOption = "random"; // 默认随机颜色
         let isMobileStarted = false;
 
-        // 创建烟花
+        // 创建普通烟花
         function createFirework(x, y) {
             const endX = x || Math.random() * canvas.width;
             const endY = y || Math.random() * canvas.height / 2;
@@ -443,8 +499,8 @@
                 fireworkColor = selectedColorOption;
             }
             
-            // 优化的烟花效果
-            createImprovedFirework(endX, endY, fireworkColor);
+            // 播放发射声音
+            playLaunchSound();
             
             // 创建上升烟花
             const firework = new Firework(
@@ -456,20 +512,57 @@
             );
             fireworks.push(firework);
         }
+        
+        // 创建大烟花
+        function createBigFirework(x, y) {
+            const endX = x || Math.random() * canvas.width;
+            const endY = y || Math.random() * canvas.height / 2;
+            
+            // 根据选择确定颜色
+            let fireworkColor;
+            if (selectedColorOption === "random") {
+                fireworkColor = colors[Math.floor(Math.random() * colors.length)];
+            } else if (selectedColorOption === "#ffffff") {
+                // 白色为主，但偶尔有其他颜色
+                fireworkColor = Math.random() > 0.2 ? "#ffffff" : colors.filter(c => c !== "#ffffff")[Math.floor(Math.random() * colors.filter(c => c !== "#ffffff").length)];
+            } else {
+                fireworkColor = selectedColorOption;
+            }
+            
+            // 播放发射声音（更大声）
+            playLaunchSound();
+            
+            // 创建上升大烟花
+            const firework = new Firework(
+                canvas.width / 2 + (Math.random() - 0.5) * 100,
+                canvas.height,
+                endX,
+                endY,
+                fireworkColor,
+                'big'
+            );
+            fireworks.push(firework);
+        }
 
         // 创建优化的烟花效果
-        function createImprovedFirework(x, y, color) {
-            const particleCount = window.innerWidth < 768 ? 30 + Math.floor(Math.random() * 30) : 100 + Math.floor(Math.random() * 100); // 100-200个粒子
+        function createImprovedFirework(x, y, color, isBig = false) {
+            // 根据是否是大烟花设置不同的粒子数量
+            const baseParticleCount = isBig ? 200 : (window.innerWidth < 768 ? 30 : 100);
+            const particleVariation = isBig ? 100 : (window.innerWidth < 768 ? 30 : 100);
+            const particleCount = baseParticleCount + Math.floor(Math.random() * particleVariation);
+            
             const baseColor = color || colors[Math.floor(Math.random() * colors.length)];
             
             // 主粒子
             for (let i = 0; i < particleCount * 0.6; i++) {
                 const hueShift = Math.random() * 60 - 30; // 色调变化
                 const color = baseColor;
-                const particle = new Particle(x, y, color, Math.random() * 2 + 1);
-                // 设置随机方向的速度
+                // 大烟花粒子更大
+                const size = isBig ? (Math.random() * 3 + 2) : (Math.random() * 2 + 1);
+                const particle = new Particle(x, y, color, size);
+                // 设置随机方向的速度，大烟花速度更快
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 5 + 2;
+                const speed = isBig ? (Math.random() * 8 + 3) : (Math.random() * 5 + 2);
                 particle.velocity = {
                     x: Math.cos(angle) * speed,
                     y: Math.sin(angle) * speed
@@ -480,9 +573,11 @@
             // 闪烁粒子
             for (let i = 0; i < particleCount * 0.3; i++) {
                 const particleColor = getParticleColor(baseColor, 30);
-                const particle = new Particle(x, y, particleColor, Math.random() * 1.5 + 0.5, 'sparkle');
+                // 大烟花闪烁粒子更多
+                const size = isBig ? (Math.random() * 2 + 1) : (Math.random() * 1.5 + 0.5);
+                const particle = new Particle(x, y, particleColor, size, 'sparkle');
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 4 + 1;
+                const speed = isBig ? (Math.random() * 6 + 2) : (Math.random() * 4 + 1);
                 particle.velocity = {
                     x: Math.cos(angle) * speed,
                     y: Math.sin(angle) * speed
@@ -493,9 +588,11 @@
             // 拖尾粒子
             for (let i = 0; i < particleCount * 0.1; i++) {
                 const particleColor = getParticleColor(baseColor, -20);
-                const particle = new Particle(x, y, particleColor, Math.random() * 1 + 0.5, 'trail');
+                // 大烟花拖尾粒子更多
+                const size = isBig ? (Math.random() * 1.5 + 0.5) : (Math.random() * 1 + 0.5);
+                const particle = new Particle(x, y, particleColor, size, 'trail');
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 3 + 0.5;
+                const speed = isBig ? (Math.random() * 5 + 1) : (Math.random() * 3 + 0.5);
                 particle.velocity = {
                     x: Math.cos(angle) * speed,
                     y: Math.sin(angle) * speed
@@ -542,6 +639,15 @@
             for (let i = fireworks.length - 1; i >= 0; i--) {
                 if (!fireworks[i].update()) {
                     // 烟花到达终点，爆炸
+                    const isBig = fireworks[i].type === 'big';
+                    createImprovedFirework(fireworks[i].end.x, fireworks[i].end.y, fireworks[i].color, isBig);
+                    
+                    // 播放不同的爆炸声音
+                    if (isBig) {
+                        playBigExplosionSound();
+                    } else {
+                        playExplosionSound();
+                    }
                     fireworks.splice(i, 1);
                 }
             }
@@ -555,7 +661,12 @@
             
             // 随机创建新的烟花（如果不是移动端或已经开始了）
             if ((isMobileStarted || window.innerWidth >= 768) && Math.random() < 0.03 && fireworks.length < 5) {
-                createFirework();
+                // 10%概率发射大烟花
+                if (Math.random() < 0.1) {
+                    createBigFirework();
+                } else {
+                    createFirework();
+                }
             }
         }
 
@@ -583,10 +694,18 @@
             // 开始自动发射烟花
             setInterval(() => {
                 if (Math.random() < 0.3) { // 移动端30%概率发射烟花，减少卡顿
-                    createFirework(
-                        Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
-                        Math.random() * canvas.height * 0.6 + canvas.height * 0.2
-                    );
+                    // 15%概率发射大烟花
+                    if (Math.random() < 0.15) {
+                        createBigFirework(
+                            Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
+                            Math.random() * canvas.height * 0.6 + canvas.height * 0.2
+                        );
+                    } else {
+                        createFirework(
+                            Math.random() * canvas.width * 0.8 + canvas.width * 0.1,
+                            Math.random() * canvas.height * 0.6 + canvas.height * 0.2
+                        );
+                    }
                 }
             }, 2000);
         });
@@ -596,10 +715,42 @@
             if (!isMobileStarted && window.innerWidth < 768) return; // 移动端未开始时不响应
             createFirework(e.clientX, e.clientY);
         });
+        
+        // 长按画布创建大烟花
+        let longPressTimer;
+        canvas.addEventListener('mousedown', (e) => {
+            if (!isMobileStarted && window.innerWidth < 768) return;
+            
+            longPressTimer = setTimeout(() => {
+                createBigFirework(e.clientX, e.clientY);
+            }, 500);
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            clearTimeout(longPressTimer);
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            clearTimeout(longPressTimer);
+        });
+        
+        // 移动端长按支持
+        canvas.addEventListener('touchstart', (e) => {
+            if (!isMobileStarted) return;
+            
+            const touch = e.touches[0];
+            longPressTimer = setTimeout(() => {
+                createBigFirework(touch.clientX, touch.clientY);
+            }, 500);
+        });
+        
+        canvas.addEventListener('touchend', () => {
+            clearTimeout(longPressTimer);
+        });
 
         // WebSocket 连接
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const socket = new WebSocket(`${protocol}//${window.location.hostname}:8001/ws`);
+        const socket = new WebSocket(`${protocol}//${window.location.hostname}:${window.location.port}/ws`);
         const danmakuContainer = document.getElementById('danmaku-container');
         const danmakuInput = document.getElementById('danmaku-text');
         const sendDanmakuBtn = document.getElementById('send-danmaku-btn');
