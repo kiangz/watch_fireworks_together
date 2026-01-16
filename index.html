@@ -229,6 +229,13 @@
         </div>
     </div>
 
+    <!-- 音频解锁提示 -->
+    <div class="mobile-overlay" id="audio-unlock-overlay" style="display: none; background: rgba(0, 0, 0, 0.9);">
+        <h1 class="mobile-title">🔊 解锁音频</h1>
+        <p class="mobile-subtitle">请点击任意位置解锁烟花声音</p>
+        <p class="mobile-subtitle" style="font-size: 0.9rem; margin-top: 10px;">（点击后提示将消失）</p>
+    </div>
+    
     <!-- 手机端覆盖层 -->
     <div class="mobile-overlay" id="mobile-overlay">
         <h1 class="mobile-title">炫酷烟花秀</h1>
@@ -248,15 +255,79 @@
     </div>
 
     <!-- 音频元素用于播放烟花声音 -->
-    <audio id="launch-sound" src="/audio/烟花发射声音.mp3" preload="auto"></audio>
-    <audio id="launch-sound2" src="/audio/烟花发射声音2.mp3" preload="auto"></audio>
-    <audio id="explosion-sound" src="/audio/烟花爆裂声1.mp3" preload="auto"></audio>
-    <audio id="explosion-sound2" src="/audio/烟花爆裂声3噼里啪啦.mp3" preload="auto"></audio>
-    <audio id="big-explosion-sound" src="/audio/大烟花爆裂声1.mp3" preload="auto"></audio>
-    <audio id="big-explosion-sound2" src="/audio/大烟花爆裂声2.mp3" preload="auto"></audio>
-    <audio id="continuous-explosion-sound" src="/audio/小烟花连续爆裂声.mp3" preload="auto"></audio>
+    <audio id="launch-sound" src="/audio/烟花发射声音.mp3" preload="auto"></think_never_used_51bce0c785ca2f68081bfa7d91973934>
+    <audio id="launch-sound2" src="/audio/烟花发射声音2.mp3" preload="auto"></think_never_used_51bce0c785ca2f68081bfa7d91973934>
+    <audio id="explosion-sound" src="/audio/烟花爆裂声1.mp3" preload="auto"></think_never_used_51bce0c785ca2f68081bfa7d91973934>
+    <audio id="explosion-sound2" src="/audio/烟花爆裂声3噼里啪啦.mp3" preload="auto"></think_never_used_51bce0c785ca2f68081bfa7d91973934>
+    <audio id="big-explosion-sound" src="/audio/大烟花爆裂声1.mp3" preload="auto"></think_never_used_51bce0c785ca2f68081bfa7d91973934>
+    <audio id="big-explosion-sound2" src="/audio/大烟花爆裂声2.mp3" preload="auto"></think_never_used_51bce0c785ca2f68081bfa7d91973934>
+    <audio id="continuous-explosion-sound" src="/audio/小烟花连续爆裂声.mp3" preload="auto"></think_never_used_51bce0c785ca2f68081bfa7d91973934>
     
     <script>
+        // 音频播放权限状态
+        let hasAudioPermission = false;
+        
+        // 获取音频播放权限
+        async function getAudioPermission() {
+            if (hasAudioPermission) return;
+            
+            try {
+                // 尝试播放一个静音的音频来获取权限
+                const sound = document.getElementById('launch-sound');
+                const originalVolume = sound.volume;
+                sound.volume = 0;
+                await sound.play();
+                sound.pause();
+                sound.currentTime = 0;
+                sound.volume = originalVolume;
+                hasAudioPermission = true;
+                console.log('已获得音频播放权限');
+            } catch (e) {
+                console.warn('获取音频播放权限失败:', e);
+            }
+        }
+        
+        // 为所有音频元素添加加载完成事件
+        document.addEventListener('DOMContentLoaded', () => {
+            const audioElements = document.querySelectorAll('audio');
+            audioElements.forEach(audio => {
+                audio.addEventListener('canplaythrough', () => {
+                    console.log('音频加载完成:', audio.src);
+                });
+            });
+        });
+        
+        // 添加用户交互事件监听器以获取音频权限
+        function setupAudioPermission() {
+            // 获取音频解锁提示元素
+            const audioUnlockOverlay = document.getElementById('audio-unlock-overlay');
+            
+            // 对于桌面端，显示音频解锁提示
+            if (window.innerWidth >= 768) {
+                audioUnlockOverlay.style.display = 'flex';
+            }
+            
+            // 尝试通过各种用户交互获取权限
+            const eventTypes = ['click', 'touchstart', 'mousedown', 'keydown'];
+            
+            const getPermission = async () => {
+                await getAudioPermission();
+                // 隐藏音频解锁提示
+                audioUnlockOverlay.style.display = 'none';
+                // 获取权限后移除事件监听器
+                eventTypes.forEach(eventType => {
+                    document.removeEventListener(eventType, getPermission);
+                });
+            };
+            
+            eventTypes.forEach(eventType => {
+                document.addEventListener(eventType, getPermission, { once: true });
+            });
+        }
+        
+        // 页面加载时设置音频权限获取
+        document.addEventListener('DOMContentLoaded', setupAudioPermission);
+        
         // 播放烟花发射的声音
         function playLaunchSound() {
             const sounds = [
@@ -266,7 +337,13 @@
             const sound = sounds[Math.floor(Math.random() * sounds.length)];
             sound.currentTime = 0;
             sound.volume = 0.5;
-            sound.play().catch(e => console.warn('播放发射声音失败:', e));
+            sound.play().catch(e => {
+                console.warn('播放发射声音失败:', e);
+                // 如果播放失败，尝试获取权限后再播放
+                getAudioPermission().then(() => {
+                    sound.play().catch(e2 => console.warn('再次播放发射声音失败:', e2));
+                });
+            });
         }
 
         // 播放烟花爆炸的声音
@@ -279,7 +356,13 @@
             const sound = sounds[Math.floor(Math.random() * sounds.length)];
             sound.currentTime = 0;
             sound.volume = 0.7;
-            sound.play().catch(e => console.warn('播放爆炸声音失败:', e));
+            sound.play().catch(e => {
+                console.warn('播放爆炸声音失败:', e);
+                // 如果播放失败，尝试获取权限后再播放
+                getAudioPermission().then(() => {
+                    sound.play().catch(e2 => console.warn('再次播放爆炸声音失败:', e2));
+                });
+            });
         }
 
         // 播放大烟花爆炸的声音
@@ -291,7 +374,13 @@
             const sound = sounds[Math.floor(Math.random() * sounds.length)];
             sound.currentTime = 0;
             sound.volume = 1.0;
-            sound.play().catch(e => console.warn('播放大爆炸声音失败:', e));
+            sound.play().catch(e => {
+                console.warn('播放大爆炸声音失败:', e);
+                // 如果播放失败，尝试获取权限后再播放
+                getAudioPermission().then(() => {
+                    sound.play().catch(e2 => console.warn('再次播放大爆炸声音失败:', e2));
+                });
+            });
         }
     </script>
     <script>
