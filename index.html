@@ -838,58 +838,104 @@
         });
 
         // WebSocket 连接
+        let socket;
+        let socketConnected = false;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const socket = new WebSocket(`${protocol}//${window.location.hostname}:${window.location.port}/ws`);
+        const wsUrl = `${protocol}//${window.location.hostname}:${window.location.port}/ws`;
         const danmakuContainer = document.getElementById('danmaku-container');
         const danmakuInput = document.getElementById('danmaku-text');
         const sendDanmakuBtn = document.getElementById('send-danmaku-btn');
         const danmakuColors = ['#ffffff', '#ff7e5f', '#feb47b', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
         
+        // 初始化WebSocket连接
+        function initWebSocket() {
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.addEventListener('open', () => {
+                    console.log('WebSocket 连接成功');
+                    socketConnected = true;
+                    updateSendButtonState();
+                });
+                
+                socket.addEventListener('close', () => {
+                    console.log('WebSocket 连接关闭');
+                    socketConnected = false;
+                    updateSendButtonState();
+                    // 尝试重连
+                    setTimeout(initWebSocket, 3000);
+                });
+                
+                socket.addEventListener('error', (error) => {
+                    console.error('WebSocket 错误:', error);
+                    socketConnected = false;
+                    updateSendButtonState();
+                });
+                
+                socket.addEventListener('message', (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'danmaku') {
+                            createDanmaku(data.text, data.color, data.size, data.speed);
+                            // 将新弹幕添加到历史列表
+                            danmakuHistory.push({
+                                text: data.text,
+                                color: data.color,
+                                size: data.size,
+                                speed: data.speed
+                            });
+                            // 确保循环播放持续运行
+                            ensureLoopRunning();
+                        } else if (data.type === 'danmaku_history') {
+                            // 处理历史弹幕
+                            if (data.danmakus && data.danmakus.length > 0) {
+                                // 解析历史弹幕数据
+                                data.danmakus.forEach(danmakuStr => {
+                                    try {
+                                        const danmaku = JSON.parse(danmakuStr);
+                                        danmakuHistory.push(danmaku);
+                                    } catch (e) {
+                                        console.error('解析历史弹幕失败:', e);
+                                    }
+                                });
+                            }
+                            // 确保循环播放开始运行
+                            ensureLoopRunning();
+                        }
+                    } catch (e) {
+                        console.error('解析消息失败:', e);
+                    }
+                });
+                
+            } catch (e) {
+                console.error('WebSocket 初始化失败:', e);
+                socketConnected = false;
+                updateSendButtonState();
+                // 尝试重连
+                setTimeout(initWebSocket, 3000);
+            }
+        }
+        
+        // 更新发送按钮状态
+        function updateSendButtonState() {
+            if (socketConnected) {
+                sendDanmakuBtn.style.opacity = '1';
+                sendDanmakuBtn.style.cursor = 'pointer';
+                sendDanmakuBtn.disabled = false;
+            } else {
+                sendDanmakuBtn.style.opacity = '0.5';
+                sendDanmakuBtn.style.cursor = 'not-allowed';
+                sendDanmakuBtn.disabled = true;
+            }
+        }
+        
+        // 页面加载时初始化WebSocket
+        document.addEventListener('DOMContentLoaded', initWebSocket);
+        
         // 历史弹幕列表和循环播放相关
         let danmakuHistory = [];
         let loopInterval = null;
         const LOOP_INTERVAL = 3000; // 循环播放间隔（毫秒）
-
-        // 连接成功
-        socket.addEventListener('open', () => {
-            console.log('WebSocket 连接成功');
-        });
-
-        // 接收消息
-        socket.addEventListener('message', (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === 'danmaku') {
-                    createDanmaku(data.text, data.color, data.size, data.speed);
-                    // 将新弹幕添加到历史列表
-                    danmakuHistory.push({
-                        text: data.text,
-                        color: data.color,
-                        size: data.size,
-                        speed: data.speed
-                    });
-                    // 确保循环播放持续运行
-                    ensureLoopRunning();
-                } else if (data.type === 'danmaku_history') {
-                    // 处理历史弹幕
-                    if (data.danmakus && data.danmakus.length > 0) {
-                        // 解析历史弹幕数据
-                        data.danmakus.forEach(danmakuStr => {
-                            try {
-                                const danmaku = JSON.parse(danmakuStr);
-                                danmakuHistory.push(danmaku);
-                            } catch (e) {
-                                console.error('解析历史弹幕失败:', e);
-                            }
-                        });
-                    }
-                    // 确保循环播放开始运行
-                    ensureLoopRunning();
-                }
-            } catch (e) {
-                console.error('解析消息失败:', e);
-            }
-        });
         
         // 开始循环播放弹幕
         function startLoopPlay() {
@@ -922,26 +968,6 @@
             }
         }
 
-        // 连接关闭
-        socket.addEventListener('close', () => {
-            console.log('WebSocket 连接关闭');
-            // 停止循环播放
-            if (loopInterval) {
-                clearInterval(loopInterval);
-                loopInterval = null;
-            }
-        });
-
-        // 连接错误
-        socket.addEventListener('error', (error) => {
-            console.error('WebSocket 错误:', error);
-            // 停止循环播放
-            if (loopInterval) {
-                clearInterval(loopInterval);
-                loopInterval = null;
-            }
-        });
-
         // 创建弹幕元素
         function createDanmaku(text, color, size, speed) {
             const danmaku = document.createElement('div');
@@ -963,7 +989,21 @@
         // 发送弹幕
         function sendDanmaku() {
             const text = danmakuInput.value.trim();
-            if (text && socket.readyState === WebSocket.OPEN) {
+            
+            // 验证输入内容
+            if (!text) {
+                console.warn('弹幕内容不能为空');
+                return;
+            }
+            
+            // 检查WebSocket连接状态
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                console.warn('WebSocket未连接，无法发送弹幕');
+                showSendFeedback('连接已断开，请稍后重试', 'error');
+                return;
+            }
+            
+            try {
                 const color = danmakuColors[Math.floor(Math.random() * danmakuColors.length)];
                 const size = Math.floor(Math.random() * 10) + 20;
                 const speed = Math.floor(Math.random() * 5) + 3;
@@ -978,7 +1018,58 @@
                 
                 socket.send(JSON.stringify(message));
                 danmakuInput.value = '';
+                showSendFeedback('发送成功', 'success');
+            } catch (e) {
+                console.error('发送弹幕失败:', e);
+                showSendFeedback('发送失败，请重试', 'error');
             }
+        }
+        
+        // 显示发送反馈
+        function showSendFeedback(message, type) {
+            // 创建反馈元素
+            const feedback = document.createElement('div');
+            feedback.textContent = message;
+            feedback.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 10px 20px;
+                border-radius: 20px;
+                color: white;
+                font-size: 14px;
+                z-index: 1000;
+                animation: fadeInOut 2s ease-in-out;
+            `;
+            
+            // 根据类型设置颜色
+            if (type === 'success') {
+                feedback.style.backgroundColor = 'rgba(0, 128, 0, 0.8)';
+            } else if (type === 'error') {
+                feedback.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+            }
+            
+            // 添加动画
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+                    20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 添加到页面
+            document.body.appendChild(feedback);
+            
+            // 2秒后移除
+            setTimeout(() => {
+                feedback.remove();
+                style.remove();
+            }, 2000);
         }
 
         // 点击发送按钮
